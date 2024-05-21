@@ -4,56 +4,89 @@
 #include <Adafruit_BMP280.h>
 #include "KalmanFilter.h"
 
-// Sensor objects
+// Create sensor objects
 Adafruit_BNO055 bno = Adafruit_BNO055(55);
 Adafruit_BMP280 bmp;
 
+// Kalman filter objects with initial parameters
+Kalman kalmanX(0.001, 0.003, 0.03); // Adjust these initial values as needed
+Kalman kalmanY(0.001, 0.003, 0.03);
+Kalman kalmanZ(0.001, 0.003, 0.03);
+Kalman kalmanAlt(0.001, 0.003, 0.03);
+
+// Time variables
+unsigned long previousTime = 0;
+float dt = 0.0;
+
 void setup() {
   Serial.begin(115200);
-  
-  // Initialize BNO055 IMU
+
+  // Initialize BNO055
   if (!bno.begin()) {
-    Serial.print("No BNO055 detected ... Check your wiring or I2C ADDR!");
+    Serial.print("No BNO055 detected");
     while (1);
   }
-  delay(1000);
   bno.setExtCrystalUse(true);
-  
+
   // Initialize BMP280
-  if (!bmp.begin(0x76)) {
-    Serial.print("Could not find a valid BMP280 sensor, check wiring!");
+  if (!bmp.begin()) {
+    Serial.print("No BMP280 detected");
     while (1);
   }
-  
-  // Initialize Kalman filter
-  kalmanInit();
+  bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
+                  Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
+                  Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
+                  Adafruit_BMP280::FILTER_X16,      /* Filtering. */
+                  Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
+
+  // Initialize Kalman filters
+  kalmanX.setAngle(0);
+  kalmanY.setAngle(0);
+  kalmanZ.setAngle(0);
+  kalmanAlt.setAngle(0);
+
+  previousTime = millis();
 }
 
 void loop() {
-  // Time step
-  static unsigned long lastTime = millis();
+  // Time delta
   unsigned long currentTime = millis();
-  float dt = (currentTime - lastTime) / 1000.0;
-  lastTime = currentTime;
+  dt = (currentTime - previousTime) / 1000.0;
+  previousTime = currentTime;
 
-  // Read sensors
-  sensors_event_t accelEvent;
-  bno.getEvent(&accelEvent, Adafruit_BNO055::VECTOR_ACCELEROMETER);
-  float accel = accelEvent.acceleration.z;
+  // Read IMU data
+  sensors_event_t event;
+  bno.getEvent(&event);
 
-  float altitude = bmp.readAltitude(1013.25); // Adjust to your local sea level pressure
+  float accelX = event.acceleration.x;
+  float accelY = event.acceleration.y;
+  float accelZ = event.acceleration.z;
 
-  // Kalman filter predict and update
-  kalmanPredict(dt);
-  kalmanUpdate(altitude, accel);
+  // Assuming the BNO055 provides orientation data directly
+  float roll = event.orientation.x;
+  float pitch = event.orientation.y;
+  float yaw = event.orientation.z;
 
-  // Output raw and filtered data
-  Serial.print("Raw Altitude: "); Serial.print(altitude);
-  Serial.print(" Raw Acceleration: "); Serial.print(accel);
-  Serial.print(" Filtered Altitude: "); Serial.print(state[0]);
-  Serial.print(" Filtered Velocity: "); Serial.print(state[1]);
-  Serial.print(" Filtered Acceleration: "); Serial.println(state[2]);
+  // Read altitude from BMP280
+  float altitude = bmp.readAltitude(1013.25); // Assuming sea level pressure is 1013.25 hPa
 
-  delay(100); 
+  // Kalman filter prediction and update
+  float rollKalman = kalmanX.getAngle(roll, accelX, dt);
+  float pitchKalman = kalmanY.getAngle(pitch, accelY, dt);
+  float yawKalman = kalmanZ.getAngle(yaw, accelZ, dt);
+  float altKalman = kalmanAlt.getAngle(altitude, 0, dt); // 0 as the BMP280 does not provide acceleration data
 
+  // Print raw values
+  Serial.print("Raw Roll: "); Serial.print(roll);
+  Serial.print(" Raw Pitch: "); Serial.print(pitch);
+  Serial.print(" Raw Yaw: "); Serial.print(yaw);
+  Serial.print(" Raw Altitude: "); Serial.println(altitude);
+
+  // Print filtered values
+  Serial.print("Filtered Roll: "); Serial.print(rollKalman);
+  Serial.print(" Filtered Pitch: "); Serial.print(pitchKalman);
+  Serial.print(" Filtered Yaw: "); Serial.print(yawKalman);
+  Serial.print(" Filtered Altitude: "); Serial.println(altKalman);
+
+  delay(100);
 }
