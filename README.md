@@ -18,4 +18,4 @@ The Kalman filter implemented here takes measurements from various sensors onboa
 To use this Kalman filter implementation, simply clone the repository to your local machine:
 
 ```bash
-git clone https://github.com/leroymusa/kalmanfilter.git
+git clone https://github.com/Arbalest-Rocketry/kalmanfilter.git
