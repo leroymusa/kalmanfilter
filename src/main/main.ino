@@ -76,11 +76,17 @@ void loop() {
   float yawKalman = kalmanZ.getAngle(yaw, accelZ, dt);
   float altKalman = kalmanAlt.getAngle(altitude, 0, dt); // 0 as the BMP280 does not provide acceleration data
 
+  // Print raw values
+  Serial.print("Raw Roll: "); Serial.print(roll);
+  Serial.print(" Raw Pitch: "); Serial.print(pitch);
+  Serial.print(" Raw Yaw: "); Serial.print(yaw);
+  Serial.print(" Raw Altitude: "); Serial.println(altitude);
+
   // Print filtered values
-  Serial.print("Roll: "); Serial.print(rollKalman);
-  Serial.print(" Pitch: "); Serial.print(pitchKalman);
-  Serial.print(" Yaw: "); Serial.print(yawKalman);
-  Serial.print(" Altitude: "); Serial.println(altKalman);
+  Serial.print("Filtered Roll: "); Serial.print(rollKalman);
+  Serial.print(" Filtered Pitch: "); Serial.print(pitchKalman);
+  Serial.print(" Filtered Yaw: "); Serial.print(yawKalman);
+  Serial.print(" Filtered Altitude: "); Serial.println(altKalman);
 
   delay(100);
 }
